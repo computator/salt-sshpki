@@ -39,11 +39,11 @@ def ext_pillar(minion_id, pillar, pki_root, ca_privkey, identity_fmt_str='salt_s
             key_type = key_type[:-4]
         log.debug("Loading certificate for %s host key", key_type)
         log.trace("%s host key: '%s'", key_type, host_key)
-        cert_path = pki.find_cert(host_key, True)
+        cert_path = pki.find_cert(keystr=host_key)
         if cert_path:
             log.debug("Found existing certificate in %s", cert_path)
         else:
-            cert_path = pki.sign_key(host_key, identity_fmt_str.format(minion_id), (minion_id,), '-1d:+' + validity_period, host_key=True, key_is_str=True)
+            cert_path = pki.sign_key(identity_fmt_str.format(minion_id), (minion_id,), '-1d:+' + validity_period, keystr=host_key, host_key=True)
             log.info("Created new certificate for minion '%s' in %s", minion_id, cert_path)
         with open(cert_path, 'r') as f:
             host_cert = f.read(4096)
