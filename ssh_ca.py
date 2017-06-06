@@ -59,7 +59,7 @@ def ext_pillar(
                 log.info("Certificate for minion '%s' expires soon, reissuing", minion_id)
             else:
                 log.debug("No matching certificate found. Creating a new one")
-            cert_path = pki.sign_key(identity_fmt_str.format(type='host', minion_id=minion_id), (minion_id,), '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=host_key, host_key=True)
+            cert_path = pki.sign_key(identity_fmt_str.format(type='host', minion_id=minion_id, fqdn=__grains__['fqdn']), (__grains__['fqdn'],), '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=host_key, host_key=True)
             log.info("Created new certificate for minion '%s' in %s", minion_id, cert_path)
         with open(cert_path, 'r') as f:
             host_cert = f.read(4096)
