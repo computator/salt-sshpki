@@ -61,12 +61,16 @@ def ext_pillar(
             log.debug("Found existing certificate in %s", cert_path)
             cert_data = sshpki.get_cert_info(certfile=cert_path)
             log.trace("Certificate data: %s", cert_data)
-            cert_expires = datetime.strptime(cert_data['Valid']['to'], '%Y-%m-%dT%H:%M:%S')
-        if not cert_path or cert_expires < datetime.now() + timedelta(days=reissue_early_days):
-            if cert_path:
-                log.info("Certificate for minion '%s' expires soon, reissuing", minion_id)
-            else:
+            cert_expiration = datetime.strptime(cert_data['Valid']['to'], '%Y-%m-%dT%H:%M:%S')
+            cert_expired = cert_expiration < datetime.now() + timedelta(days=reissue_early_days)
+            principals_updated = set(principals) != set(cert_data['Principals'])
+        if not cert_path or principals_updated or cert_expired:
+            if not cert_path:
                 log.debug("No matching certificate found. Creating a new one")
+            elif principals_updated:
+                log.info("Certificate principals for minion '%s' updated, reissuing", minion_id)
+            else:
+                log.info("Certificate for minion '%s' expires soon or is expired, reissuing", minion_id)
             cert_path = pki.sign_key(identity_fmt_str.format(type='host', minion_id=minion_id, fqdn=__grains__['fqdn']), principals, '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=host_key, host_key=True)
             log.info("Created new certificate for minion '%s' in %s", minion_id, cert_path)
         with open(cert_path, 'r') as f:
