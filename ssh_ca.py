@@ -37,6 +37,14 @@ def ext_pillar(
     if not path.isfile(ca_privkey):
         raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
 
+    try:
+        principals = pillar['ssh_ca']['principals']
+    except KeyError:
+        try:
+            principals = [pillar['ssh_ca']['principal']]
+        except KeyError:
+            principals = [__grains__['fqdn']]
+
     pki = sshpki.SshPki(pki_root, ca_privkey)
 
     log.debug("Retriving host keys for minion '%s'", minion_id)
@@ -59,7 +67,7 @@ def ext_pillar(
                 log.info("Certificate for minion '%s' expires soon, reissuing", minion_id)
             else:
                 log.debug("No matching certificate found. Creating a new one")
-            cert_path = pki.sign_key(identity_fmt_str.format(type='host', minion_id=minion_id, fqdn=__grains__['fqdn']), (__grains__['fqdn'],), '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=host_key, host_key=True)
+            cert_path = pki.sign_key(identity_fmt_str.format(type='host', minion_id=minion_id, fqdn=__grains__['fqdn']), principals, '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=host_key, host_key=True)
             log.info("Created new certificate for minion '%s' in %s", minion_id, cert_path)
         with open(cert_path, 'r') as f:
             host_cert = f.read(4096)
