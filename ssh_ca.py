@@ -38,11 +38,17 @@ def ext_pillar(
         raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
 
     try:
-        principals = pillar['ssh_ca']['principals']
-    except KeyError:
         try:
-            principals = [pillar['ssh_ca']['principal']]
-        except KeyError:
+            principals = pillar['ssh_ca']['by_id'][minion_id]['principals']
+        except (KeyError, TypeError):
+            principals = pillar['ssh_ca']['principals']
+    except (KeyError, TypeError):
+        try:
+            try:
+                principals = [pillar['ssh_ca']['by_id'][minion_id]['principal']]
+            except (KeyError, TypeError):
+                principals = [pillar['ssh_ca']['principal']]
+        except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
 
     pki = sshpki.SshPki(pki_root, ca_privkey)
