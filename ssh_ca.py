@@ -17,25 +17,15 @@ def __virtual__():
     except NameError:
         return False
 
-def ext_pillar(
+def _process_hostkeys(
+        pki,
         minion_id,
         pillar,
-        pki_root,
-        ca_privkey,
         identity_fmt_str='salt_ssh_ca:{type}:{minion_id}',
         validity_period='4w',
         reissue_early_days=7,
         backdate_days=1):
     log.info("Loading host key certificates for minion '%s'", minion_id)
-    pki_root = path.abspath(pki_root)
-    log.debug("Using %s as PKI root", pki_root)
-    if not path.isdir(pki_root):
-        os.makedirs(pki_root)
-        log.info("Created PKI root %s", pki_root)
-    ca_privkey = path.abspath(ca_privkey)
-    log.debug("Using %s as PKI CA private key", ca_privkey)
-    if not path.isfile(ca_privkey):
-        raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
 
     try:
         try:
@@ -50,8 +40,6 @@ def ext_pillar(
                 principals = [pillar['ssh_ca']['principal']]
         except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
-
-    pki = sshpki.SshPki(pki_root, ca_privkey)
 
     log.debug("Retriving host keys for minion '%s'", minion_id)
     host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
@@ -83,5 +71,30 @@ def ext_pillar(
             host_cert = f.read(4096)
         host_key_certs[key_type] = host_cert
     log.trace("Loaded certificate data: %s", host_key_certs)
+
+    return host_key_certs
+
+def ext_pillar(
+        minion_id,
+        pillar,
+        pki_root,
+        ca_privkey,
+        identity_fmt_str='salt_ssh_ca:{type}:{minion_id}',
+        validity_period='4w',
+        reissue_early_days=7,
+        backdate_days=1):
+    log.info("Loading certificates for minion '%s'", minion_id)
+    pki_root = path.abspath(pki_root)
+    log.debug("Using %s as PKI root", pki_root)
+    if not path.isdir(pki_root):
+        os.makedirs(pki_root)
+        log.info("Created PKI root %s", pki_root)
+    ca_privkey = path.abspath(ca_privkey)
+    log.debug("Using %s as PKI CA private key", ca_privkey)
+    if not path.isfile(ca_privkey):
+        raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
+    pki = sshpki.SshPki(pki_root, ca_privkey)
+
+    host_key_certs = _process_hostkeys(pki, minion_id, pillar, identity_fmt_str, validity_period, reissue_early_days, backdate_days)
 
     return {'ssh_ca': {'host_key_certs': host_key_certs}}
