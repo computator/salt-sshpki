@@ -29,15 +29,15 @@ def _process_hostkeys(
 
     try:
         try:
-            principals = pillar['ssh_ca']['by_id'][minion_id]['principals']
+            principals = pillar['ssh_ca']['hostkey_by_id'][minion_id]['principals']
         except (KeyError, TypeError):
-            principals = pillar['ssh_ca']['principals']
+            principals = pillar['ssh_ca']['hostkey']['principals']
     except (KeyError, TypeError):
         try:
             try:
-                principals = [pillar['ssh_ca']['by_id'][minion_id]['principal']]
+                principals = [pillar['ssh_ca']['hostkey_by_id'][minion_id]['principal']]
             except (KeyError, TypeError):
-                principals = [pillar['ssh_ca']['principal']]
+                principals = [pillar['ssh_ca']['hostkey']['principal']]
         except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
 
@@ -84,6 +84,19 @@ def ext_pillar(
         reissue_early_days=7,
         backdate_days=1):
     log.info("Loading certificates for minion '%s'", minion_id)
+
+    gen_hostkeys = True
+    try:
+        try:
+            pillar['ssh_ca']['hostkey_by_id'][minion_id]
+        except (KeyError, TypeError):
+            pillar['ssh_ca']['hostkey']
+    except (KeyError, TypeError):
+        gen_hostkeys = False
+
+    if not gen_hostkeys:
+        return {}
+
     pki_root = path.abspath(pki_root)
     log.debug("Using %s as PKI root", pki_root)
     if not path.isdir(pki_root):
