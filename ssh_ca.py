@@ -29,13 +29,13 @@ def _process_hostkeys(
 
     try:
         try:
-            principals = pillar['ssh_ca']['hostkey_by_id'][minion_id]['principals']
+            principals = pillar['ssh_ca']['hostkey_by_minion'][minion_id]['principals']
         except (KeyError, TypeError):
             principals = pillar['ssh_ca']['hostkey']['principals']
     except (KeyError, TypeError):
         try:
             try:
-                principals = [pillar['ssh_ca']['hostkey_by_id'][minion_id]['principal']]
+                principals = [pillar['ssh_ca']['hostkey_by_minion'][minion_id]['principal']]
             except (KeyError, TypeError):
                 principals = [pillar['ssh_ca']['hostkey']['principal']]
         except (KeyError, TypeError):
@@ -88,7 +88,7 @@ def ext_pillar(
     gen_hostkeys = True
     try:
         try:
-            pillar['ssh_ca']['hostkey_by_id'][minion_id]
+            pillar['ssh_ca']['hostkey_by_minion'][minion_id]
         except (KeyError, TypeError):
             pillar['ssh_ca']['hostkey']
     except (KeyError, TypeError):
