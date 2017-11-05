@@ -63,21 +63,21 @@ def _get_key_certs(
 def _process_hostkeys(
         pki,
         minion_id,
-        pillar,
+        ca_config,
         keygen_info):
     log.info("Loading host key certificates for minion '%s'", minion_id)
 
     try:
         try:
-            principals = pillar['ssh_ca']['hostkey_by_minion'][minion_id]['principals']
+            principals = ca_config['hostkey_by_minion'][minion_id]['principals']
         except (KeyError, TypeError):
-            principals = pillar['ssh_ca']['hostkey']['principals']
+            principals = ca_config['hostkey']['principals']
     except (KeyError, TypeError):
         try:
             try:
-                principals = [pillar['ssh_ca']['hostkey_by_minion'][minion_id]['principal']]
+                principals = [ca_config['hostkey_by_minion'][minion_id]['principal']]
             except (KeyError, TypeError):
-                principals = [pillar['ssh_ca']['hostkey']['principal']]
+                principals = [ca_config['hostkey']['principal']]
         except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
 
@@ -92,15 +92,15 @@ def _process_hostkeys(
 def _process_users(
         pki,
         minion_id,
-        pillar,
+        ca_config,
         keygen_info):
     log.info("Loading user certificates for minion '%s'", minion_id)
 
     try:
         try:
-            users = pillar['ssh_ca']['users_by_minion'][minion_id]
+            users = ca_config['users_by_minion'][minion_id]
         except (KeyError, TypeError):
-            users = pillar['ssh_ca']['users']
+            users = ca_config['users']
     except (KeyError, TypeError):
         log.debug("No user keys needed for minion '%s'", minion_id)
         return {}
@@ -137,24 +137,28 @@ def ext_pillar(
         identity_fmt_str='salt_ssh_ca:{type}:{type_id}',
         validity_period='4w',
         reissue_early_days=7,
-        backdate_days=1):
+        backdate_days=1,
+        pillar_prefix='ssh_ca'):
+
+    ca_config = pillar[pillar_prefix]
+
     log.info("Loading certificates for minion '%s'", minion_id)
 
     gen_hostkeys = True
     try:
         try:
-            pillar['ssh_ca']['hostkey_by_minion'][minion_id]
+            ca_config['hostkey_by_minion'][minion_id]
         except (KeyError, TypeError):
-            pillar['ssh_ca']['hostkey']
+            ca_config['hostkey']
     except (KeyError, TypeError):
         gen_hostkeys = False
 
     gen_userkeys = True
     try:
         try:
-            pillar['ssh_ca']['users_by_minion'][minion_id]
+            ca_config['users_by_minion'][minion_id]
         except (KeyError, TypeError):
-            pillar['ssh_ca']['users']
+            ca_config['users']
     except (KeyError, TypeError):
         gen_userkeys = False
 
@@ -185,10 +189,10 @@ def ext_pillar(
 
     ret = {}
     if gen_hostkeys:
-        host_key_certs = _process_hostkeys(pki, minion_id, pillar, keygen_info)
+        host_key_certs = _process_hostkeys(pki, minion_id, ca_config, keygen_info)
         ret['host_key_certs'] = host_key_certs
     if gen_userkeys:
-        user_certs = _process_users(pki, minion_id, pillar, keygen_info)
+        user_certs = _process_users(pki, minion_id, ca_config, keygen_info)
         ret['user_certs'] = user_certs
 
-    return {'ssh_ca': ret}
+    return {pillar_prefix: ret}
