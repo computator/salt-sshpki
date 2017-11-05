@@ -17,14 +17,54 @@ def __virtual__():
     except NameError:
         return False
 
+def _get_key_certs(
+        pki,
+        keys,
+        assoc_type,
+        assoc_id,
+        principals,
+        keygen_info):
+    certs = {}
+    for keytype, key in keys.iteritems():
+        if keytype.startswith('id_'):
+            keytype = keytype[3:]
+        if keytype.endswith('.pub'):
+            keytype = keytype[:-4]
+        log.debug("Loading certificate for %s %s key", keytype, assoc_type)
+        log.trace("%s %s key: '%s'", keytype, assoc_type, key)
+        cert_path = pki.find_cert(keystr=key)
+        if cert_path:
+            log.debug("Found existing certificate in %s", cert_path)
+            cert_data = sshpki.get_cert_info(certfile=cert_path)
+            log.trace("Certificate data: %s", cert_data)
+            cert_expiration = datetime.strptime(cert_data['Valid']['to'], '%Y-%m-%dT%H:%M:%S')
+            cert_expired = cert_expiration < datetime.now() + timedelta(days=keygen_info['reissue_early_days'])
+            principals_updated = set(principals) != set(cert_data['Principals'])
+        if not cert_path or principals_updated or cert_expired:
+            if not cert_path:
+                log.debug("No matching certificate found. Creating a new one")
+            elif principals_updated:
+                log.info("Certificate principals for %s '%s' updated, reissuing", assoc_type, assoc_id)
+            else:
+                log.info("Certificate for %s '%s' expires soon or is expired, reissuing", assoc_type, assoc_id)
+            id_str = keygen_info['identity_fmt_str'].format(
+                keytype=keytype,
+                type=assoc_type,
+                type_id=assoc_id,
+                **keygen_info.get('identity_fmt_args', {}))
+            cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key)
+            log.info("Created new certificate for %s '%s' in %s", assoc_type, assoc_id, cert_path)
+        with open(cert_path, 'r') as f:
+            cert = f.read(4096)
+        certs[keytype] = cert
+    return certs
+
+
 def _process_hostkeys(
         pki,
         minion_id,
         pillar,
-        identity_fmt_str='salt_ssh_ca:{type}:{minion_id}',
-        validity_period='4w',
-        reissue_early_days=7,
-        backdate_days=1):
+        keygen_info):
     log.info("Loading host key certificates for minion '%s'", minion_id)
 
     try:
@@ -44,32 +84,7 @@ def _process_hostkeys(
     log.debug("Retriving host keys for minion '%s'", minion_id)
     host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
     log.trace("Found host keys: %s", host_keys)
-    host_key_certs = {}
-    for key_type, host_key in host_keys.iteritems():
-        if key_type.endswith('.pub'):
-            key_type = key_type[:-4]
-        log.debug("Loading certificate for %s host key", key_type)
-        log.trace("%s host key: '%s'", key_type, host_key)
-        cert_path = pki.find_cert(keystr=host_key)
-        if cert_path:
-            log.debug("Found existing certificate in %s", cert_path)
-            cert_data = sshpki.get_cert_info(certfile=cert_path)
-            log.trace("Certificate data: %s", cert_data)
-            cert_expiration = datetime.strptime(cert_data['Valid']['to'], '%Y-%m-%dT%H:%M:%S')
-            cert_expired = cert_expiration < datetime.now() + timedelta(days=reissue_early_days)
-            principals_updated = set(principals) != set(cert_data['Principals'])
-        if not cert_path or principals_updated or cert_expired:
-            if not cert_path:
-                log.debug("No matching certificate found. Creating a new one")
-            elif principals_updated:
-                log.info("Certificate principals for minion '%s' updated, reissuing", minion_id)
-            else:
-                log.info("Certificate for minion '%s' expires soon or is expired, reissuing", minion_id)
-            cert_path = pki.sign_key(identity_fmt_str.format(type='host', minion_id=minion_id, fqdn=__grains__['fqdn']), principals, '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=host_key, host_key=True)
-            log.info("Created new certificate for minion '%s' in %s", minion_id, cert_path)
-        with open(cert_path, 'r') as f:
-            host_cert = f.read(4096)
-        host_key_certs[key_type] = host_cert
+    host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info)
     log.trace("Loaded certificate data: %s", host_key_certs)
 
     return host_key_certs
@@ -78,10 +93,7 @@ def _process_users(
         pki,
         minion_id,
         pillar,
-        identity_fmt_str='salt_ssh_ca:{type}:{minion_id}',
-        validity_period='4w',
-        reissue_early_days=7,
-        backdate_days=1):
+        keygen_info):
     log.info("Loading user certificates for minion '%s'", minion_id)
 
     try:
@@ -112,33 +124,7 @@ def _process_users(
             log.error("Error retriving user keys", exc_info=True)
             user_keys = {}
         log.trace("Found user keys: %s", user_keys)
-        for key_type, user_key in user_keys.iteritems():
-            if key_type.endswith('.pub'):
-                key_type = key_type[:-4]
-            if key_type.startswith('id_'):
-                key_type = key_type[3:]
-            log.debug("Loading certificate for %s user key", key_type)
-            log.trace("%s user key: '%s'", key_type, user_key)
-            cert_path = pki.find_cert(keystr=user_key)
-            if cert_path:
-                log.debug("Found existing certificate in %s", cert_path)
-                cert_data = sshpki.get_cert_info(certfile=cert_path)
-                log.trace("Certificate data: %s", cert_data)
-                cert_expiration = datetime.strptime(cert_data['Valid']['to'], '%Y-%m-%dT%H:%M:%S')
-                cert_expired = cert_expiration < datetime.now() + timedelta(days=reissue_early_days)
-                principals_updated = set(principals) != set(cert_data['Principals'])
-            if not cert_path or principals_updated or cert_expired:
-                if not cert_path:
-                    log.debug("No matching certificate found. Creating a new one")
-                elif principals_updated:
-                    log.info("Certificate principals for user '%s' updated, reissuing", user)
-                else:
-                    log.info("Certificate for user '%s' expires soon or is expired, reissuing", user)
-                cert_path = pki.sign_key(identity_fmt_str.format(type='user', user=user, minion_id=minion_id, fqdn=__grains__['fqdn']), principals, '-' + str(backdate_days) + 'd:+' + str(validity_period), keystr=user_key)
-                log.info("Created new certificate for user '%s' in %s", user, cert_path)
-            with open(cert_path, 'r') as f:
-                user_cert = f.read(4096)
-            user_certs[user][key_type] = user_cert
+        user_certs[user] = _get_key_certs(pki, user_keys, "user", user, principals, keygen_info)
     log.trace("Loaded certificate data: %s", user_certs)
 
     return user_certs
@@ -148,7 +134,7 @@ def ext_pillar(
         pillar,
         pki_root,
         ca_privkey,
-        identity_fmt_str='salt_ssh_ca:{type}:{minion_id}',
+        identity_fmt_str='salt_ssh_ca:{type}:{type_id}',
         validity_period='4w',
         reissue_early_days=7,
         backdate_days=1):
@@ -186,12 +172,23 @@ def ext_pillar(
         raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
     pki = sshpki.SshPki(pki_root, ca_privkey)
 
+    keygen_info = {
+        'identity_fmt_str': identity_fmt_str,
+        'validity_period': validity_period,
+        'reissue_early_days': reissue_early_days,
+        'backdate_days': backdate_days,
+        'identity_fmt_args': {
+            'minion_id': minion_id,
+            'fqdn': __grains__['fqdn']
+        }
+    }
+
     ret = {}
     if gen_hostkeys:
-        host_key_certs = _process_hostkeys(pki, minion_id, pillar, identity_fmt_str, validity_period, reissue_early_days, backdate_days)
+        host_key_certs = _process_hostkeys(pki, minion_id, pillar, keygen_info)
         ret['host_key_certs'] = host_key_certs
     if gen_userkeys:
-        user_certs = _process_users(pki, minion_id, pillar, identity_fmt_str, validity_period, reissue_early_days, backdate_days)
+        user_certs = _process_users(pki, minion_id, pillar, keygen_info)
         ret['user_certs'] = user_certs
 
     return {'ssh_ca': ret}
