@@ -81,8 +81,19 @@ def _process_hostkeys(
         except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
 
+    local_id = __salt__['grains.get']('id')
+    if minion_id == local_id:
+        log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
+        local = True
+    else:
+        log.debug("Minion id '%s' and local id '%s' are different. Running commands remotely.", minion_id, local_id)
+        local = False
+
     log.debug("Retriving host keys for minion '%s'", minion_id)
-    host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
+    if local:
+        host_keys = __salt__['ssh.host_keys'](private=False)
+    else:
+        host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
     log.trace("Found host keys: %s", host_keys)
     host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info)
     log.trace("Loaded certificate data: %s", host_key_certs)
@@ -106,6 +117,14 @@ def _process_users(
         return {}
     log.trace("Found user data: %s", users)
 
+    local_id = __salt__['grains.get']('id')
+    if minion_id == local_id:
+        log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
+        local = True
+    else:
+        log.debug("Minion id '%s' and local id '%s' are different. Running commands remotely.", minion_id, local_id)
+        local = False
+
     user_certs = {}
     for user, options in users.iteritems():
         user_certs[user] = {}
@@ -117,7 +136,10 @@ def _process_users(
         log.trace("Found user '%s' with options: %s", user, options)
         log.debug("Retriving user keys for '%s' on minion '%s'", user, minion_id)
         try:
-            user_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.user_keys', kwarg={'user': user, 'pubfile': options.get('pubkey_path'), 'prvfile': False}, expr_form='list')[minion_id]['ret'][user]
+            if local:
+                user_keys = __salt__['ssh.user_keys'](user=user, pubfile=options.get('pubkey_path'), prvfile=False)[user]
+            else:
+                user_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.user_keys', kwarg={'user': user, 'pubfile': options.get('pubkey_path'), 'prvfile': False}, expr_form='list')[minion_id]['ret'][user]
         except KeyError:
             user_keys = {}
         except:
