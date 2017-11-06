@@ -127,7 +127,6 @@ def _process_users(
 
     user_certs = {}
     for user, options in users.iteritems():
-        user_certs[user] = {}
         if options is None:
             options = {}
         principals = options.get('principals')
@@ -146,7 +145,10 @@ def _process_users(
             log.error("Error retriving user keys", exc_info=True)
             user_keys = {}
         log.trace("Found user keys: %s", user_keys)
-        user_certs[user] = _get_key_certs(pki, user_keys, "user", user, principals, keygen_info)
+        certs = _get_key_certs(pki, user_keys, "user", user, principals, keygen_info)
+        log.trace("Loaded user certificate data: %s", certs)
+        if certs:
+            user_certs[user] = certs
     log.trace("Loaded certificate data: %s", user_certs)
 
     return user_certs
