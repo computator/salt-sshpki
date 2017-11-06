@@ -134,11 +134,11 @@ def ext_pillar(
         pillar,
         pki_root,
         ca_privkey,
-        identity_fmt_str='salt_ssh_ca:{type}:{type_id}',
+        identity_fmt_str='salt_sshpki:{type}:{type_id}',
         validity_period='4w',
         reissue_early_days=7,
         backdate_days=1,
-        pillar_prefix='ssh_ca'):
+        pillar_prefix='sshpki'):
 
     ca_config = pillar[pillar_prefix]
 
