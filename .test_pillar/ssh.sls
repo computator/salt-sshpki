@@ -35,6 +35,8 @@ sshpki:
           - principals1
           - principals2
           - principals3
+        # a nondefault path or filename to load the public key from
+        pubkey_path: testkey.pub
       # another user, this one with no options
       root:
   # users is for having a pillar file specific to each host.
