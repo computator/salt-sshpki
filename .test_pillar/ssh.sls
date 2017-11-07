@@ -2,7 +2,7 @@ sshpki:
   # hostkey_by_minion is for listing hosts and their options
   # in a pillar file shared with multiple hosts
   hostkey_by_minion:
-    # host to generate a key for and it's corresponding options
+    # host to generate a certificate for and it's corresponding options
     ubuntu-xenial:
       principal: principal1
       # a list of principals, overrides principal
@@ -27,7 +27,7 @@ sshpki:
   users_by_minion:
     # a host to generate users for
     ubuntu-xenial:
-      # user to generate a key for and it's corresponding options
+      # user to generate a certificate for and it's corresponding options
       ubuntu:
         principal: principal1
         # a list of principals, overrides principal
