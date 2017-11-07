@@ -31,8 +31,8 @@ def _get_key_certs(
             keytype = keytype[3:]
         if keytype.endswith('.pub'):
             keytype = keytype[:-4]
-        log.debug("Loading certificate for %s %s key", keytype, assoc_type)
-        log.trace("%s %s key: '%s'", keytype, assoc_type, key)
+        log.debug("Loading certificate for '%s' %s key", keytype, assoc_type)
+        log.trace("'%s' %s key: '%s'", keytype, assoc_type, key)
         cert_path = pki.find_cert(keystr=key)
         if cert_path:
             log.debug("Found existing certificate in %s", cert_path)
@@ -57,7 +57,7 @@ def _get_key_certs(
                 cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key, host_key=host_keys)
                 log.info("Created new certificate for %s '%s' in %s", assoc_type, assoc_id, cert_path)
             except sshpki.InvalidKeyError as e:
-                log.error("Failed to sign %s %s key for %s: %s", keytype, assoc_type, assoc_id, e)
+                log.error("Failed to sign '%s' %s key for %s: %s", keytype, assoc_type, assoc_id, e)
                 cert_path = None
         if cert_path:
             with open(cert_path, 'r') as f:
