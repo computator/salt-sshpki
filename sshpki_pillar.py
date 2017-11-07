@@ -23,7 +23,8 @@ def _get_key_certs(
         assoc_type,
         assoc_id,
         principals,
-        keygen_info):
+        keygen_info,
+        host_keys=False):
     certs = {}
     for keytype, key in keys.iteritems():
         if keytype.startswith('id_'):
@@ -52,7 +53,7 @@ def _get_key_certs(
                 type=assoc_type,
                 type_id=assoc_id,
                 **keygen_info.get('identity_fmt_args', {}))
-            cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key)
+            cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key, host_key=host_keys)
             log.info("Created new certificate for %s '%s' in %s", assoc_type, assoc_id, cert_path)
         with open(cert_path, 'r') as f:
             cert = f.read(4096)
@@ -95,7 +96,7 @@ def _process_hostkeys(
     else:
         host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
     log.trace("Found host keys: %s", host_keys)
-    host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info)
+    host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info, host_keys=True)
     log.trace("Loaded certificate data: %s", host_key_certs)
 
     return host_key_certs
