@@ -37,6 +37,12 @@ sshpki:
           - principals3
         # a nondefault path or filename to load the public key from
         pubkey_path: testkey.pub
+        # a list of options to set on the certificate using ssh-keygen -O
+        options:
+          - no-agent-forwarding
+          - no-x11-forwarding
+          - source-address=127.0.0.0/8,192.168.1.0/24
+          - force-command=cat /etc/motd
       # another user, this one with no options
       root:
   # users is for having a pillar file specific to each host.

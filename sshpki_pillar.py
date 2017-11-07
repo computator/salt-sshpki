@@ -54,7 +54,7 @@ def _get_key_certs(
                 type_id=assoc_id,
                 **keygen_info.get('identity_fmt_args', {}))
             try:
-                cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key, host_key=host_keys)
+                cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keygen_info.get('options', []), keystr=key, host_key=host_keys)
                 log.info("Created new certificate for %s '%s' in %s", assoc_type, assoc_id, cert_path)
             except sshpki.InvalidKeyError as e:
                 log.error("Failed to sign '%s' %s key for %s: %s", keytype, assoc_type, assoc_id, e)
@@ -138,6 +138,9 @@ def _process_users(
         principals = options.get('principals')
         if not principals:
             principals = [options.get('principal', user)]
+        keygen_info['options'] = options.get('options')
+        if keygen_info['options'] is None:
+            keygen_info['options'] = []
         log.trace("Found user '%s' with options: %s", user, options)
         log.debug("Retriving user keys for '%s' on minion '%s'", user, minion_id)
         try:
