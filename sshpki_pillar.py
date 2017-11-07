@@ -53,11 +53,16 @@ def _get_key_certs(
                 type=assoc_type,
                 type_id=assoc_id,
                 **keygen_info.get('identity_fmt_args', {}))
-            cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key, host_key=host_keys)
-            log.info("Created new certificate for %s '%s' in %s", assoc_type, assoc_id, cert_path)
-        with open(cert_path, 'r') as f:
-            cert = f.read(4096)
-        certs[keytype] = cert
+            try:
+                cert_path = pki.sign_key(id_str, principals, '-' + str(keygen_info['backdate_days']) + 'd:+' + str(keygen_info['validity_period']), keystr=key, host_key=host_keys)
+                log.info("Created new certificate for %s '%s' in %s", assoc_type, assoc_id, cert_path)
+            except sshpki.InvalidKeyError as e:
+                log.error("Failed to sign %s %s key for %s: %s", keytype, assoc_type, assoc_id, e)
+                cert_path = None
+        if cert_path:
+            with open(cert_path, 'r') as f:
+                cert = f.read(4096)
+            certs[keytype] = cert
     return certs
 
 
