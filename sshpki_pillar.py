@@ -178,6 +178,25 @@ def ext_pillar(
     except KeyError:
         ca_config = {}
 
+    log.info("Loading PKI data for minion '%s'", minion_id)
+
+    ret = {}
+
+    ca_privkey = path.abspath(ca_privkey)
+    ca_pubkey = '{0}.pub'.format(ca_privkey)
+    if path.isfile(ca_pubkey):
+        log.debug("Using %s as PKI CA public key", ca_privkey)
+    else:
+        ca_pubkey = None
+        log.info("No PKI CA public key found")
+    log.debug("Using %s as PKI CA private key", ca_privkey)
+    if not path.isfile(ca_privkey):
+        raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
+
+    if ca_pubkey:
+        with open(ca_pubkey, 'r') as f:
+            ret['ca_public_key'] = f.read(4096)
+
     log.info("Loading certificates for minion '%s'", minion_id)
 
     gen_hostkeys = True
@@ -198,37 +217,30 @@ def ext_pillar(
     except (KeyError, TypeError):
         gen_userkeys = False
 
-    if not gen_hostkeys and not gen_userkeys:
-        return {}
+    if gen_hostkeys or gen_userkeys:
+        pki_root = path.abspath(pki_root)
+        log.debug("Using %s as PKI root", pki_root)
+        if not path.isdir(pki_root):
+            os.makedirs(pki_root)
+            log.info("Created PKI root %s", pki_root)
+        pki = sshpki.SshPki(pki_root, ca_privkey)
 
-    pki_root = path.abspath(pki_root)
-    log.debug("Using %s as PKI root", pki_root)
-    if not path.isdir(pki_root):
-        os.makedirs(pki_root)
-        log.info("Created PKI root %s", pki_root)
-    ca_privkey = path.abspath(ca_privkey)
-    log.debug("Using %s as PKI CA private key", ca_privkey)
-    if not path.isfile(ca_privkey):
-        raise Exception("ca_privkey '{}' must be an existing file".format(ca_privkey))
-    pki = sshpki.SshPki(pki_root, ca_privkey)
-
-    keygen_info = {
-        'identity_fmt_str': identity_fmt_str,
-        'validity_period': validity_period,
-        'reissue_early_days': reissue_early_days,
-        'backdate_days': backdate_days,
-        'identity_fmt_args': {
-            'minion_id': minion_id,
-            'fqdn': __grains__['fqdn']
+        keygen_info = {
+            'identity_fmt_str': identity_fmt_str,
+            'validity_period': validity_period,
+            'reissue_early_days': reissue_early_days,
+            'backdate_days': backdate_days,
+            'identity_fmt_args': {
+                'minion_id': minion_id,
+                'fqdn': __grains__['fqdn']
+            }
         }
-    }
 
-    ret = {}
-    if gen_hostkeys:
-        host_key_certs = _process_hostkeys(pki, minion_id, ca_config, keygen_info)
-        ret['host_key_certs'] = host_key_certs
-    if gen_userkeys:
-        user_certs = _process_users(pki, minion_id, ca_config, keygen_info)
-        ret['user_certs'] = user_certs
+        if gen_hostkeys:
+            host_key_certs = _process_hostkeys(pki, minion_id, ca_config, keygen_info)
+            ret['host_key_certs'] = host_key_certs
+        if gen_userkeys:
+            user_certs = _process_users(pki, minion_id, ca_config, keygen_info)
+            ret['user_certs'] = user_certs
 
     return {pillar_prefix: ret}
