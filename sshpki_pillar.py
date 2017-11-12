@@ -173,7 +173,10 @@ def ext_pillar(
         backdate_days=1,
         pillar_prefix='sshpki'):
 
-    ca_config = pillar[pillar_prefix]
+    try:
+        ca_config = pillar[pillar_prefix]
+    except KeyError:
+        ca_config = {}
 
     log.info("Loading certificates for minion '%s'", minion_id)
 
