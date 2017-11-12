@@ -155,6 +155,9 @@ def _process_users(
             user_keys = {}
         log.trace("Found user keys: %s", user_keys)
         certs = _get_key_certs(pki, user_keys, "user", user, principals, keygen_info)
+        if options.get('pubkey_path'):
+            for t in certs:
+                certs[t]['path_opt'] = options.get('pubkey_path')
         log.trace("Loaded user certificate data: %s", certs)
         if certs:
             user_certs[user] = certs
