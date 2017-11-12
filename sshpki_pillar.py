@@ -62,7 +62,7 @@ def _get_key_certs(
         if cert_path:
             with open(cert_path, 'r') as f:
                 cert = f.read(4096)
-            certs[keytype] = cert
+            certs[keytype] = {'certificate': cert}
     return certs
 
 
