@@ -100,6 +100,9 @@ def _process_hostkeys(
         host_keys = __salt__['ssh.host_keys'](private=False)
     else:
         host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
+    for keytype in host_keys:
+        if '-cert-' in host_keys[keytype]:
+            del host_keys[keytype]
     log.trace("Found host keys: %s", host_keys)
     host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info, host_keys=True)
     log.trace("Loaded certificate data: %s", host_key_certs)
