@@ -101,7 +101,7 @@ def _process_hostkeys(
             host_keys = __salt__['ssh_backport.host_keys'](private=False, certs=False)
         else:
             host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False, 'certs': False}, expr_form='list')[minion_id]['ret']
-    else
+    else:
         if local:
             host_keys = __salt__['ssh.host_keys'](private=False)
         else:
