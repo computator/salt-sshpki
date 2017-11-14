@@ -87,7 +87,7 @@ def _process_hostkeys(
         except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
 
-    local_id = __salt__['grains.get']('id')
+    local_id = __grains__['id']
     if minion_id == local_id:
         log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
         local = True
