@@ -119,6 +119,8 @@ def _process_users(
         except (KeyError, TypeError):
             users = ca_config['users']
     except (KeyError, TypeError):
+        users = {}
+    if not users:
         log.debug("No user keys needed for minion '%s'", minion_id)
         return {}
     log.trace("Found user data: %s", users)
