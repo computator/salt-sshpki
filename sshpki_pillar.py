@@ -87,7 +87,9 @@ def _process_hostkeys(
         except (KeyError, TypeError):
             principals = [__grains__['fqdn']]
 
-    local_id = __grains__['id']
+    local_id = __opts__['id']
+    if local_id.endswith('_master'):
+        local_id = local_id[:-7]
     if minion_id == local_id:
         log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
         local = True
@@ -132,7 +134,9 @@ def _process_users(
         return {}
     log.trace("Found user data: %s", users)
 
-    local_id = __salt__['grains.get']('id')
+    local_id = __opts__['id']
+    if local_id.endswith('_master'):
+        local_id = local_id[:-7]
     if minion_id == local_id:
         log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
         local = True
