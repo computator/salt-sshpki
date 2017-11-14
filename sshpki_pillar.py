@@ -96,12 +96,17 @@ def _process_hostkeys(
         local = False
 
     log.debug("Retriving host keys for minion '%s'", minion_id)
-    if local:
-        host_keys = __salt__['ssh.host_keys'](private=False)
-    else:
-        host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
-    
-    host_keys = {keytype: host_keys[keytype] for keytype in host_keys if '-cert-' not in host_keys[keytype]}
+    if 'ssh_backport.host_keys' in __salt__:
+        if local:
+            host_keys = __salt__['ssh_backport.host_keys'](private=False, certs=False)
+        else:
+            host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False, 'certs': False}, expr_form='list')[minion_id]['ret']
+    else
+        if local:
+            host_keys = __salt__['ssh.host_keys'](private=False)
+        else:
+            host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
+        host_keys = {keytype: host_keys[keytype] for keytype in host_keys if '-cert-' not in host_keys[keytype]}
     log.trace("Found host keys: %s", host_keys)
     host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info, host_keys=True)
     log.trace("Loaded certificate data: %s", host_key_certs)
