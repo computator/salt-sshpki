@@ -85,7 +85,14 @@ def _process_hostkeys(
             except (KeyError, TypeError):
                 principals = [ca_config['hostkey']['principal']]
         except (KeyError, TypeError):
-            principals = [__grains__['fqdn']]
+            try:
+                patterns = ca_config['hostkey_by_minion'][minion_id]['principal_patterns']
+            except (KeyError, TypeError):
+                try:
+                    patterns = ca_config['hostkey']['principal_patterns']
+                except (KeyError, TypeError):
+                    patterns = ['{}']
+            principals = [pattern.format(__grains__['fqdn']) for pattern in patterns]
 
     local_id = __opts__['id']
     if local_id.endswith('_master'):

@@ -16,6 +16,12 @@ sshpki:
   # It can also be used as a default because it is overridden by
   # matching entries in hostkey_by_minion.
   hostkey:
+    # a list of one or more patterns with which to generate a list of
+    # principals if they are not explicitly set with principal or principals
+    principal_patterns:
+      - '{}'
+      - '{}.local'
+      - '{}.testdomain.com'
     principal: principal1
     # a list of principals, overrides principal
     principals:
