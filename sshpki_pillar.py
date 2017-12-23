@@ -109,12 +109,16 @@ def _process_hostkeys(
         if local:
             host_keys = __salt__['ssh_backport.host_keys'](private=False, certs=False)
         else:
-            host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh_backport.host_keys', kwarg={'private': False, 'certs': False}, expr_form='list')[minion_id]['ret']
+            results = __salt__['saltutil.cmd']([minion_id], 'ssh_backport.host_keys', kwarg={'private': False, 'certs': False}, expr_form='list')
+            log.trace("Remote results: %s", results)
+            host_keys = results[minion_id]['ret']
     else:
         if local:
             host_keys = __salt__['ssh.host_keys'](private=False)
         else:
-            host_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')[minion_id]['ret']
+            results = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')
+            log.trace("Remote results: %s", results)
+            host_keys = results[minion_id]['ret']
         host_keys = {keytype: host_keys[keytype] for keytype in host_keys if '-cert-' not in host_keys[keytype]}
     log.trace("Found host keys: %s", host_keys)
     host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info, host_keys=True)
@@ -167,7 +171,9 @@ def _process_users(
             if local:
                 user_keys = __salt__['ssh.user_keys'](user=user, pubfile=options.get('pubkey_path'), prvfile=False)[user]
             else:
-                user_keys = __salt__['saltutil.cmd']([minion_id], 'ssh.user_keys', kwarg={'user': user, 'pubfile': options.get('pubkey_path'), 'prvfile': False}, expr_form='list')[minion_id]['ret'][user]
+                results = __salt__['saltutil.cmd']([minion_id], 'ssh.user_keys', kwarg={'user': user, 'pubfile': options.get('pubkey_path'), 'prvfile': False}, expr_form='list')
+                log.trace("Remote results: %s", results)
+                user_keys = results[minion_id]['ret'][user]
         except KeyError:
             user_keys = {}
         except:
