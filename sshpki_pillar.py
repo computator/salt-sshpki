@@ -260,10 +260,18 @@ def ext_pillar(
         }
 
         if gen_hostkeys:
-            host_key_certs = _process_hostkeys(pki, minion_id, ca_config, keygen_info)
+            try:
+                host_key_certs = _process_hostkeys(pki, minion_id, ca_config, keygen_info)
+            except:
+                log.error("Exception processing host_key_certs", exc_info=true)
+                host_key_certs = {'_error': "Exception processing host_key_certs"}
             ret['host_key_certs'] = host_key_certs
         if gen_userkeys:
-            user_certs = _process_users(pki, minion_id, ca_config, keygen_info)
+            try:
+                user_certs = _process_users(pki, minion_id, ca_config, keygen_info)
+            except:
+                log.error("Exception processing user_certs", exc_info=true)
+                user_certs = {'_error': "Exception processing user_certs"}
             ret['user_certs'] = user_certs
 
     return {pillar_prefix: ret}
