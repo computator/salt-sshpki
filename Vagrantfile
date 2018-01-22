@@ -5,6 +5,7 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.synced_folder ".", "/srv/salt/_pillar"
+  config.vm.synced_folder "_runners", "/srv/salt/_runners"
   config.vm.synced_folder ".test_pillar", "/srv/pillar"
   config.vm.synced_folder "lib/sshpki/sshpki", "/usr/local/lib/python2.7/dist-packages/sshpki"
 
