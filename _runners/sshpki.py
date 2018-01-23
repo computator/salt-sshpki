@@ -21,31 +21,40 @@ def _process_hostkeys(client, pillars):
     cache = salt.cache.factory(__opts__)
 
     log.debug("Retriving host keys for minions: %s", pillars.keys())
-    if use_certs_param:
-        cmd_run = client.cmd_iter(pillars.keys(),
-                               'ssh.host_keys',
-                               kwarg={'private': False, 'certs': False},
-                               **{expr_keyname: 'list'})
-    else:
-        cmd_run = client.cmd_iter(pillars.keys(),
-                               'ssh.host_keys',
-                               kwarg={'private': False},
-                               **{expr_keyname: 'list'})
-    for rets in cmd_run:
-        for minion, resp in rets.iteritems():
-            log.trace("Minion '%s' returned: %s", minion, resp)
-            if resp['retcode'] != 0:
-                log.warn("Minion '%s' returned an error running"
-                         " 'ssh.host_keys': %s", minion, resp['ret'])
-                continue
-            if not use_certs_param:
-                for key in resp['ret']:
-                    if '-cert.pub' in key:
-                        del resp['ret'][key]
-            log.trace("Found host keys for minion '%s'", minion)
-            cache.store('sshpki/hostkeys', minion, resp['ret'])
-            log.debug("Stored host keys for minion '%s'", minion)
-    log.debug("Host key processing complete")
+    try:
+        if use_certs_param:
+            cmd_run = client.cmd_iter(pillars.keys(),
+                                   'ssh.host_keys',
+                                   kwarg={'private': False, 'certs': False},
+                                   **{expr_keyname: 'list'})
+        else:
+            cmd_run = client.cmd_iter(pillars.keys(),
+                                   'ssh.host_keys',
+                                   kwarg={'private': False},
+                                   **{expr_keyname: 'list'})
+        for rets in cmd_run:
+            for minion, resp in rets.iteritems():
+                log.trace("Minion '%s' returned: %s", minion, resp)
+                try:
+                    if resp['retcode'] != 0:
+                        log.warn("Minion '%s' returned an error running"
+                                 " 'ssh.host_keys': %s", minion, resp['ret'])
+                        continue
+                    if not use_certs_param:
+                        for key in resp['ret']:
+                            if '-cert.pub' in key:
+                                del resp['ret'][key]
+                    log.trace("Found host keys for minion '%s'", minion)
+                    try:
+                        cache.store('sshpki/hostkeys', minion, resp['ret'])
+                        log.debug("Stored host keys for minion '%s'", minion)
+                    except:
+                        log.warn("Failed to store host keys for minion '%s'", minion, exc_info=True)
+                except:
+                    log.warn("Error processing return data for minion '%s'", minion, exc_info=True)
+        log.debug("Host key processing complete")
+    except:
+        log.warn("Error retriving host keys for minions", exc_info=True)
 
 def _process_userkeys(client, pillars):
     cache = salt.cache.factory(__opts__)
@@ -83,41 +92,67 @@ def _process_userkeys(client, pillars):
 
     for minion_id, users in minion_users.iteritems():
         log.debug("Retriving default user keys for minion '%s'", minion_id)
-        resp = next(client.cmd_iter([minion_id],
-                               'ssh.user_keys',
-                               [users.keys()],
-                               kwarg={'prvfile': False},
-                               **{expr_keyname: 'list'}))[minion_id]
-        log.trace("Minion '%s' returned: %s", minion_id, resp)
-        if resp['retcode'] != 0:
-            log.warn("Minion '%s' returned an error running"
-                     " 'ssh.user_keys': %s", minion_id, resp['ret'])
-            continue
-        log.trace("Found user keys for minion '%s'", minion_id)
-        bank = 'sshpki/userkeys/{}'.format(minion_id)
-        for user, key in resp['ret'].iteritems():
-            cache.store(bank, user, key)
-            log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
-        log.debug("Stored default user keys for minion '%s'", minion_id)
-    for minion_id, users in minion_users_custkeys.iteritems():
-        log.debug("Retriving custom user keys for minion '%s'", minion_id)
-        for user, options in users.iteritems():
-            log.trace("Retriving keys for user '%s' on minion '%s'", user, minion_id)
+        try:
             resp = next(client.cmd_iter([minion_id],
                                    'ssh.user_keys',
-                                   [user],
-                                   kwarg={'pubfile': options.get('pubkey_path'), 'prvfile': False},
+                                   [users.keys()],
+                                   kwarg={'prvfile': False},
                                    **{expr_keyname: 'list'}))[minion_id]
-            log.trace("Minion '%s' returned: %s", minion_id, resp)
+        except:
+            log.warn("Error retriving default user keys for minion '%s", minion_id, exc_info=True)
+            continue
+        log.trace("Minion '%s' returned: %s", minion_id, resp)
+        try:
             if resp['retcode'] != 0:
                 log.warn("Minion '%s' returned an error running"
                          " 'ssh.user_keys': %s", minion_id, resp['ret'])
                 continue
-            if not resp['ret']:
+            log.trace("Found user keys for minion '%s'", minion_id)
+            bank = 'sshpki/userkeys/{}'.format(minion_id)
+            exc = False
+            for user, key in resp['ret'].iteritems():
+                try:
+                    cache.store(bank, user, key)
+                    log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
+                except:
+                    log.warn("Failed to store keys for user '%s' on minion '%s'", user, minion_id, exc_info=True)
+                    exc = True
+                    break
+            if exc:
                 continue
-            log.trace("Found keys for user '%s' on minion '%s'", user, minion_id)
-            cache.store('sshpki/userkeys/{}'.format(minion_id), user, resp['ret'][user])
-            log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
+            log.debug("Stored default user keys for minion '%s'", minion_id)
+        except:
+            log.warn("Error processing return data for minion '%s'", minion_id, exc_info=True)
+    for minion_id, users in minion_users_custkeys.iteritems():
+        log.debug("Retriving custom user keys for minion '%s'", minion_id)
+        for user, options in users.iteritems():
+            log.trace("Retriving keys for user '%s' on minion '%s'", user, minion_id)
+            try:
+                resp = next(client.cmd_iter([minion_id],
+                                       'ssh.user_keys',
+                                       [user],
+                                       kwarg={'pubfile': options.get('pubkey_path'), 'prvfile': False},
+                                       **{expr_keyname: 'list'}))[minion_id]
+            except:
+                log.warn("Error retriving keys for user '%s' on minion '%s'", user, minion_id, exc_info=True)
+                continue
+            log.trace("Minion '%s' returned: %s", minion_id, resp)
+            try:
+                if resp['retcode'] != 0:
+                    log.warn("Minion '%s' returned an error running"
+                             " 'ssh.user_keys': %s", minion_id, resp['ret'])
+                    continue
+                if not resp['ret']:
+                    continue
+                log.trace("Found keys for user '%s' on minion '%s'", user, minion_id)
+                try:
+                    cache.store('sshpki/userkeys/{}'.format(minion_id), user, resp['ret'][user])
+                    log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
+                except:
+                    log.warn("Failed to store keys for user '%s' on minion '%s'", user, minion_id, exc_info=True)
+                    continue
+            except:
+                log.warn("Error processing return data for user '%s' on minion '%s'", user, minion_id, exc_info=True)
         log.debug("Stored custom user keys for minion '%s'", minion_id)
     log.debug("User key processing complete")
 
