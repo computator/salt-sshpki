@@ -2,6 +2,7 @@ import os
 from os import path
 import logging
 import salt.client
+import salt.cache
 import salt.version
 from salt.utils.master import MasterPillarUtil
 
@@ -14,8 +15,9 @@ else:
     expr_keyname = 'expr_form'
 
 def _process_hostkeys(client, pillars):
+    cache = salt.cache.factory(__opts__)
+
     log.debug("Retriving host keys for minions: %s", pillars.keys())
-    host_keys = {}
     cmd_run = client.cmd_iter(pillars.keys(),
                            'ssh_backport.host_keys',
                            kwarg={'private': False, 'certs': False},
@@ -31,8 +33,9 @@ def _process_hostkeys(client, pillars):
                 log.warn("Minion '%s' returned an error running"
                          " 'ssh_backport.host_keys': %s", minion, resp['ret'])
                 continue
-            log.debug("Found host keys for minion '%s'", minion)
-            host_keys[minion] = resp['ret']
+            log.trace("Found host keys for minion '%s'", minion)
+            cache.store('sshpki/hostkeys', minion, resp['ret'])
+            log.debug("Stored host keys for minion '%s'", minion)
     if retry_alt:
         log.debug("Retrying for minions: %s", retry_alt)
         cmd_run = client.cmd_iter(retry_alt,
@@ -46,11 +49,14 @@ def _process_hostkeys(client, pillars):
                     log.warn("Minion '%s' returned an error running"
                              " 'ssh.host_keys': %s", minion, resp['ret'])
                     continue
-                log.debug("Found host keys for minion '%s'", minion)
-                host_keys[minion] = resp['ret']
-    log.trace("Found host keys: %s", host_keys)
+                log.trace("Found host keys for minion '%s'", minion)
+                cache.store('sshpki/hostkeys', minion, resp['ret'])
+                log.debug("Stored host keys for minion '%s'", minion)
+    log.debug("Host key processing complete")
 
 def _process_userkeys(client, pillars):
+    cache = salt.cache.factory(__opts__)
+
     log.debug("Retriving user keys for minions: %s", pillars.keys())
 
     minion_users = {}
@@ -82,7 +88,6 @@ def _process_userkeys(client, pillars):
     log.trace("Minion user data for users with custom keys: %s", minion_users_custkeys)
     log.trace("Minion user data for users with default keys: %s", minion_users)
 
-    user_keys = {}
     for minion_id, users in minion_users.iteritems():
         log.debug("Retriving default user keys for minion '%s'", minion_id)
         resp = next(client.cmd_iter([minion_id],
@@ -95,12 +100,16 @@ def _process_userkeys(client, pillars):
             log.warn("Minion '%s' returned an error running"
                      " 'ssh.user_keys': %s", minion_id, resp['ret'])
             continue
-        log.debug("Found user keys for minion '%s'", minion_id)
-        user_keys[minion_id] = resp['ret']
+        log.trace("Found user keys for minion '%s'", minion_id)
+        bank = 'sshpki/userkeys/{}'.format(minion_id)
+        for user, key in resp['ret'].iteritems():
+            cache.store(bank, user, key)
+            log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
+        log.debug("Stored user keys for minion '%s'", minion_id)
     for minion_id, users in minion_users_custkeys.iteritems():
         log.debug("Retriving custom user keys for minion '%s'", minion_id)
         for user, options in users.iteritems():
-            log.debug("Retriving keys for user '%s' on minion '%s'", user, minion_id)
+            log.trace("Retriving keys for user '%s' on minion '%s'", user, minion_id)
             resp = next(client.cmd_iter([minion_id],
                                    'ssh.user_keys',
                                    [user],
@@ -113,11 +122,11 @@ def _process_userkeys(client, pillars):
                 continue
             if not resp['ret']:
                 continue
-            log.debug("Found keys for user '%s' on minion '%s'", user, minion_id)
-            if not minion_id in user_keys:
-                user_keys[minion_id] = {}
-            user_keys[minion_id][user] = resp['ret'][user]
-    log.trace("Found user keys: %s", user_keys)
+            log.trace("Found keys for user '%s' on minion '%s'", user, minion_id)
+            cache.store('sshpki/userkeys/{}'.format(minion_id), user, resp['ret'][user])
+            log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
+        log.debug("Stored user keys for minion '%s'", minion_id)
+    log.debug("User key processing complete")
 
 def pull_pubkeys(tgt, tgt_type='glob', pillar_prefix='sshpki'):
 
