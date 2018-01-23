@@ -17,9 +17,7 @@ if salt.version.__saltstack_version__ >= \
                     salt.version.SaltStackVersion.from_name('oxygen'):
     use_certs_param = True
 
-def _process_hostkeys(client, pillars):
-    cache = salt.cache.factory(__opts__)
-
+def _process_hostkeys(client, pillars, cache):
     log.debug("Retriving host keys for minions: %s", pillars.keys())
     try:
         if use_certs_param:
@@ -56,9 +54,7 @@ def _process_hostkeys(client, pillars):
     except:
         log.warn("Error retriving host keys for minions", exc_info=True)
 
-def _process_userkeys(client, pillars):
-    cache = salt.cache.factory(__opts__)
-
+def _process_userkeys(client, pillars, cache):
     log.debug("Retriving user keys for minions: %s", pillars.keys())
 
     minion_users = {}
@@ -202,6 +198,7 @@ def pull_pubkeys(tgt, tgt_type='glob', pillar_prefix='sshpki'):
         return
 
     client = salt.client.get_local_client(__opts__['conf_file'])
+    cache = salt.cache.factory(__opts__)
 
-    _process_hostkeys(client, pillars)
-    _process_userkeys(client, pillars)
+    _process_hostkeys(client, pillars, cache)
+    _process_userkeys(client, pillars, cache)
