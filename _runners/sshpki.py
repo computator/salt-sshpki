@@ -33,25 +33,25 @@ def _process_hostkeys(client, pillars):
                                    kwarg={'private': False},
                                    **{expr_keyname: 'list'})
         for rets in cmd_run:
-            for minion, resp in rets.iteritems():
-                log.trace("Minion '%s' returned: %s", minion, resp)
+            for minion_id, resp in rets.iteritems():
+                log.trace("Minion '%s' returned: %s", minion_id, resp)
                 try:
                     if resp['retcode'] != 0:
                         log.warn("Minion '%s' returned an error running"
-                                 " 'ssh.host_keys': %s", minion, resp['ret'])
+                                 " 'ssh.host_keys': %s", minion_id, resp['ret'])
                         continue
                     if not use_certs_param:
                         for key in resp['ret']:
                             if '-cert.pub' in key:
                                 del resp['ret'][key]
-                    log.trace("Found host keys for minion '%s'", minion)
+                    log.trace("Found host keys for minion '%s'", minion_id)
                     try:
-                        cache.store('sshpki/hostkeys', minion, resp['ret'])
-                        log.debug("Stored host keys for minion '%s'", minion)
+                        cache.store('sshpki/hostkeys', minion_id, resp['ret'])
+                        log.debug("Stored host keys for minion '%s'", minion_id)
                     except:
-                        log.warn("Failed to store host keys for minion '%s'", minion, exc_info=True)
+                        log.warn("Failed to store host keys for minion '%s'", minion_id, exc_info=True)
                 except:
-                    log.warn("Error processing return data for minion '%s'", minion, exc_info=True)
+                    log.warn("Error processing return data for minion '%s'", minion_id, exc_info=True)
         log.debug("Host key processing complete")
     except:
         log.warn("Error retriving host keys for minions", exc_info=True)
