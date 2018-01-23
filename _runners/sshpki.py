@@ -8,50 +8,43 @@ from salt.utils.master import MasterPillarUtil
 
 log = logging.getLogger(__name__)
 
+expr_keyname = 'expr_form'
+use_certs_param = False
 if salt.version.__saltstack_version__ >= \
                     salt.version.SaltStackVersion.from_name('nitrogen'):
     expr_keyname = 'tgt_type'
-else:
-    expr_keyname = 'expr_form'
+if salt.version.__saltstack_version__ >= \
+                    salt.version.SaltStackVersion.from_name('oxygen'):
+    use_certs_param = True
 
 def _process_hostkeys(client, pillars):
     cache = salt.cache.factory(__opts__)
 
     log.debug("Retriving host keys for minions: %s", pillars.keys())
-    cmd_run = client.cmd_iter(pillars.keys(),
-                           'ssh_backport.host_keys',
-                           kwarg={'private': False, 'certs': False},
-                           **{expr_keyname: 'list'})
-    retry_alt = []
-    for rets in cmd_run:
-        for minion, resp in rets.iteritems():
-            log.trace("Minion '%s' returned: %s", minion, resp)
-            if resp['retcode'] == 254:
-                retry_alt.append(minion)
-                continue
-            elif resp['retcode'] != 0:
-                log.warn("Minion '%s' returned an error running"
-                         " 'ssh_backport.host_keys': %s", minion, resp['ret'])
-                continue
-            log.trace("Found host keys for minion '%s'", minion)
-            cache.store('sshpki/hostkeys', minion, resp['ret'])
-            log.debug("Stored host keys for minion '%s'", minion)
-    if retry_alt:
-        log.debug("Retrying for minions: %s", retry_alt)
-        cmd_run = client.cmd_iter(retry_alt,
+    if use_certs_param:
+        cmd_run = client.cmd_iter(pillars.keys(),
+                               'ssh.host_keys',
+                               kwarg={'private': False, 'certs': False},
+                               **{expr_keyname: 'list'})
+    else:
+        cmd_run = client.cmd_iter(pillars.keys(),
                                'ssh.host_keys',
                                kwarg={'private': False},
                                **{expr_keyname: 'list'})
-        for rets in cmd_run:
-            for minion, resp in rets.iteritems():
-                log.trace("Minion '%s' returned: %s", minion, resp)
-                if resp['retcode'] != 0:
-                    log.warn("Minion '%s' returned an error running"
-                             " 'ssh.host_keys': %s", minion, resp['ret'])
-                    continue
-                log.trace("Found host keys for minion '%s'", minion)
-                cache.store('sshpki/hostkeys', minion, resp['ret'])
-                log.debug("Stored host keys for minion '%s'", minion)
+    for rets in cmd_run:
+        for minion, resp in rets.iteritems():
+            log.trace("Minion '%s' returned: %s", minion, resp)
+            if resp['retcode'] != 0:
+                log.warn("Minion '%s' returned an error running"
+                         " 'ssh.host_keys': %s", minion, resp['ret'])
+                continue
+            if not use_certs_param:
+                for key in resp['ret']:
+                    if '-cert.pub' in key:
+                        del resp['ret'][key]
+            log.trace("Found host keys for minion '%s'", minion)
+            cache.store('sshpki/hostkeys', minion, resp['ret'])
+            log.debug("Stored host keys for minion '%s'", minion)
     log.debug("Host key processing complete")
 
 def _process_userkeys(client, pillars):
