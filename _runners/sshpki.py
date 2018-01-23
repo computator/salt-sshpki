@@ -105,7 +105,7 @@ def _process_userkeys(client, pillars):
         for user, key in resp['ret'].iteritems():
             cache.store(bank, user, key)
             log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
-        log.debug("Stored user keys for minion '%s'", minion_id)
+        log.debug("Stored default user keys for minion '%s'", minion_id)
     for minion_id, users in minion_users_custkeys.iteritems():
         log.debug("Retriving custom user keys for minion '%s'", minion_id)
         for user, options in users.iteritems():
@@ -125,7 +125,7 @@ def _process_userkeys(client, pillars):
             log.trace("Found keys for user '%s' on minion '%s'", user, minion_id)
             cache.store('sshpki/userkeys/{}'.format(minion_id), user, resp['ret'][user])
             log.trace("Stored keys for user '%s' on minion '%s'", user, minion_id)
-        log.debug("Stored user keys for minion '%s'", minion_id)
+        log.debug("Stored custom user keys for minion '%s'", minion_id)
     log.debug("User key processing complete")
 
 def pull_pubkeys(tgt, tgt_type='glob', pillar_prefix='sshpki'):
@@ -139,7 +139,7 @@ def pull_pubkeys(tgt, tgt_type='glob', pillar_prefix='sshpki'):
     if not pillars:
         log.info("No pillar data found for minions")
         return
-    log.debug("Pillar data found for minions: %s", pillars.keys())
+    log.trace("Pillar data found for minions: %s", pillars.keys())
     log.trace("Pillar data: %s", pillars)
 
     # filter out minions with no host or user keys set
