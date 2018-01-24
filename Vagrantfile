@@ -6,6 +6,7 @@ Vagrant.configure(2) do |config|
 
   config.vm.synced_folder ".", "/srv/salt/_pillar"
   config.vm.synced_folder "_runners", "/srv/salt/_runners"
+  config.vm.synced_folder "_reactors", "/srv/salt/_reactors"
   config.vm.synced_folder ".test_pillar", "/srv/pillar"
   config.vm.synced_folder "lib/sshpki/sshpki", "/usr/local/lib/python2.7/dist-packages/sshpki"
 
@@ -21,6 +22,11 @@ Vagrant.configure(2) do |config|
             pki_root: /etc/sshpki
             ca_privkey: /etc/sshpki/ca_key
             validity_period: 1m
+CONF
+    cat > /etc/salt/master.d/reactor.conf <<-CONF
+      reactor:
+        - 'salt/minion/*/start':
+          - salt://_reactors/sshpki-pull-keys.sls
 CONF
     systemctl restart salt-master
   SHELL
