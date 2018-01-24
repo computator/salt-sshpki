@@ -17,10 +17,10 @@ Vagrant.configure(2) do |config|
     [ -f /etc/sshpki/ca_key ] || ssh-keygen -q -N '' -f /etc/sshpki/ca_key
     cat > /etc/salt/master.d/ext-pillar.conf <<-CONF
       ext_pillar:
-         - sshpki_pillar:
-             pki_root: /etc/sshpki
-             ca_privkey: /etc/sshpki/ca_key
-             validity_period: 1m
+        - sshpki_pillar:
+            pki_root: /etc/sshpki
+            ca_privkey: /etc/sshpki/ca_key
+            validity_period: 1m
 CONF
     systemctl restart salt-master
   SHELL
