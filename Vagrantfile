@@ -16,18 +16,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "salt-pillar", type: "shell", inline: <<-SHELL
     mkdir -p /etc/sshpki
     [ -f /etc/sshpki/ca_key ] || ssh-keygen -q -N '' -f /etc/sshpki/ca_key
-    cat > /etc/salt/master.d/ext-pillar.conf <<-CONF
-      ext_pillar:
-        - sshpki_pillar:
-            pki_root: /etc/sshpki
-            ca_privkey: /etc/sshpki/ca_key
-            validity_period: 1m
-CONF
-    cat > /etc/salt/master.d/reactor.conf <<-CONF
-      reactor:
-        - 'salt/minion/*/start':
-          - salt://_reactors/sshpki-pull-keys.sls
-CONF
+    ln -sf /srv/salt/_pillar/master.conf /etc/salt/master.d/sshpki.conf
     systemctl restart salt-master
   SHELL
   config.vm.provision "get-pillar", type: "shell", keep_color: true, inline: "salt-call --force-color pillar.get sshpki"
