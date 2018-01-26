@@ -1,6 +1,7 @@
 import os
 from os import path
 import logging
+import salt.cache
 from datetime import datetime, timedelta
 
 try:
@@ -68,6 +69,7 @@ def _get_key_certs(
 
 def _process_hostkeys(
         pki,
+        cache,
         minion_id,
         ca_config,
         keygen_info):
@@ -94,32 +96,8 @@ def _process_hostkeys(
                     patterns = ['{}']
             principals = [pattern.format(__grains__['fqdn']) for pattern in patterns]
 
-    local_id = __opts__['id']
-    if local_id.endswith('_master'):
-        local_id = local_id[:-7]
-    if minion_id == local_id:
-        log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
-        local = True
-    else:
-        log.debug("Minion id '%s' and local id '%s' are different. Running commands remotely.", minion_id, local_id)
-        local = False
-
-    log.debug("Retriving host keys for minion '%s'", minion_id)
-    if 'ssh_backport.host_keys' in __salt__:
-        if local:
-            host_keys = __salt__['ssh_backport.host_keys'](private=False, certs=False)
-        else:
-            results = __salt__['saltutil.cmd']([minion_id], 'ssh_backport.host_keys', kwarg={'private': False, 'certs': False}, expr_form='list')
-            log.trace("Remote results: %s", results)
-            host_keys = results[minion_id]['ret']
-    else:
-        if local:
-            host_keys = __salt__['ssh.host_keys'](private=False)
-        else:
-            results = __salt__['saltutil.cmd']([minion_id], 'ssh.host_keys', kwarg={'private': False}, expr_form='list')
-            log.trace("Remote results: %s", results)
-            host_keys = results[minion_id]['ret']
-        host_keys = {keytype: host_keys[keytype] for keytype in host_keys if '-cert-' not in host_keys[keytype]}
+    log.debug("Checking cache for host keys for minion '%s'", minion_id)
+    host_keys = cache.fetch('sshpki/hostkeys', minion_id)
     log.trace("Found host keys: %s", host_keys)
     host_key_certs = _get_key_certs(pki, host_keys, "host", minion_id, principals, keygen_info, host_keys=True)
     log.trace("Loaded certificate data: %s", host_key_certs)
@@ -128,6 +106,7 @@ def _process_hostkeys(
 
 def _process_users(
         pki,
+        cache,
         minion_id,
         ca_config,
         keygen_info):
@@ -145,16 +124,6 @@ def _process_users(
         return {}
     log.trace("Found user data: %s", users)
 
-    local_id = __opts__['id']
-    if local_id.endswith('_master'):
-        local_id = local_id[:-7]
-    if minion_id == local_id:
-        log.debug("Minion id '%s' matches local id '%s'. Running commands locally.", minion_id, local_id)
-        local = True
-    else:
-        log.debug("Minion id '%s' and local id '%s' are different. Running commands remotely.", minion_id, local_id)
-        local = False
-
     user_certs = {}
     for user, options in users.iteritems():
         if options is None:
@@ -166,19 +135,9 @@ def _process_users(
         if keygen_info['options'] is None:
             keygen_info['options'] = []
         log.trace("Found user '%s' with options: %s", user, options)
-        log.debug("Retriving user keys for '%s' on minion '%s'", user, minion_id)
-        try:
-            if local:
-                user_keys = __salt__['ssh.user_keys'](user=user, pubfile=options.get('pubkey_path'), prvfile=False)[user]
-            else:
-                results = __salt__['saltutil.cmd']([minion_id], 'ssh.user_keys', kwarg={'user': user, 'pubfile': options.get('pubkey_path'), 'prvfile': False}, expr_form='list')
-                log.trace("Remote results: %s", results)
-                user_keys = results[minion_id]['ret'][user]
-        except KeyError:
-            user_keys = {}
-        except:
-            log.error("Error retriving user keys", exc_info=True)
-            user_keys = {}
+
+        log.debug("Checking cache for user keys for '%s' on minion '%s'", user, minion_id)
+        user_keys = cache.fetch('sshpki/userkeys/{}'.format(minion_id), user)
         log.trace("Found user keys: %s", user_keys)
         certs = _get_key_certs(pki, user_keys, "user", '{0}@{1}'.format(user, minion_id), principals, keygen_info)
         if options.get('pubkey_path'):
@@ -247,6 +206,8 @@ def ext_pillar(
         gen_userkeys = False
 
     if gen_hostkeys or gen_userkeys:
+        cache = salt.cache.factory(__opts__)
+
         pki_root = path.abspath(pki_root)
         log.debug("Using %s as PKI root", pki_root)
         if not path.isdir(pki_root):
@@ -267,14 +228,14 @@ def ext_pillar(
 
         if gen_hostkeys:
             try:
-                host_key_certs = _process_hostkeys(pki, minion_id, ca_config, keygen_info)
+                host_key_certs = _process_hostkeys(pki, cache, minion_id, ca_config, keygen_info)
             except:
                 log.error("Exception processing host_key_certs", exc_info=True)
                 host_key_certs = {'_error': "Exception processing host_key_certs"}
             ret['host_key_certs'] = host_key_certs
         if gen_userkeys:
             try:
-                user_certs = _process_users(pki, minion_id, ca_config, keygen_info)
+                user_certs = _process_users(pki, cache, minion_id, ca_config, keygen_info)
             except:
                 log.error("Exception processing user_certs", exc_info=True)
                 user_certs = {'_error': "Exception processing user_certs"}
