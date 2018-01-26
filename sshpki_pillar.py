@@ -185,7 +185,7 @@ def ext_pillar(
         with open(ca_pubkey, 'r') as f:
             ret['ca_public_key'] = f.read(4096)
 
-    log.info("Loading certificates for minion '%s'", minion_id)
+    log.debug("Loading certificates for minion '%s'", minion_id)
 
     gen_hostkeys = True
     try:
