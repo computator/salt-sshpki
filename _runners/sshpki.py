@@ -94,6 +94,9 @@ def _process_userkeys(client, pillars, cache):
                                    [users.keys()],
                                    kwarg={'prvfile': False},
                                    **{expr_keyname: 'list'}))[minion_id]
+        except StopIteration:
+            log.debug("No response retriving default user keys for minion '%s'", minion_id)
+            continue
         except:
             log.warn("Error retriving default user keys for minion '%s'", minion_id, exc_info=True)
             continue
@@ -121,6 +124,7 @@ def _process_userkeys(client, pillars, cache):
             log.warn("Error processing return data for minion '%s'", minion_id, exc_info=True)
     for minion_id, users in minion_users_custkeys.iteritems():
         log.debug("Retriving custom user keys for minion '%s'", minion_id)
+        last_failed = False
         for user, options in users.iteritems():
             log.trace("Retriving keys for user '%s' on minion '%s'", user, minion_id)
             try:
@@ -129,9 +133,18 @@ def _process_userkeys(client, pillars, cache):
                                        [user],
                                        kwarg={'pubfile': options.get('pubkey_path'), 'prvfile': False},
                                        **{expr_keyname: 'list'}))[minion_id]
+            except StopIteration:
+                log.debug("No response retriving keys for user '%s' on minion '%s'", user, minion_id)
+                if last_failed:
+                    log.debug("Skipping minion '%s' due to repeat failure", minion_id)
+                    break
+                else:
+                    last_failed = True
+                    continue
             except:
                 log.warn("Error retriving keys for user '%s' on minion '%s'", user, minion_id, exc_info=True)
                 continue
+            last_failed = False
             log.trace("Minion '%s' returned: %s", minion_id, resp)
             try:
                 if resp['retcode'] != 0:
