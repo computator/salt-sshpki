@@ -95,7 +95,7 @@ def _process_userkeys(client, pillars, cache):
                                    kwarg={'prvfile': False},
                                    **{expr_keyname: 'list'}))[minion_id]
         except:
-            log.warn("Error retriving default user keys for minion '%s", minion_id, exc_info=True)
+            log.warn("Error retriving default user keys for minion '%s'", minion_id, exc_info=True)
             continue
         log.trace("Minion '%s' returned: %s", minion_id, resp)
         try:
