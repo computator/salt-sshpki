@@ -40,7 +40,7 @@ def _process_hostkeys(client, pillars, cache):
                         continue
                     if not use_certs_param:
                         for key in resp['ret']:
-                            if '-cert.pub' in key:
+                            if '-cert.pub' in key or '-cert-' in resp['ret'][key]:
                                 del resp['ret'][key]
                     log.trace("Found host keys for minion '%s'", minion_id)
                     try:
