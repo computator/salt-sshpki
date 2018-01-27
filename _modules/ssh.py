@@ -45,7 +45,7 @@ if __saltstack_version__ < SaltStackVersion.from_name('oxygen'):
 
                 top = fn_.split('.')
                 comps = top[0][9:].split('_')
-                kname = comps[0] + comps[1][4:]
+                kname = comps[0] + comps[1][3:]
                 if len(top) > 1:
                     kname += '.{0}'.format(top[1])
                 try:
