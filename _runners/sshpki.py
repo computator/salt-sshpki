@@ -39,7 +39,7 @@ def _process_hostkeys(client, pillars, cache):
                                  " 'ssh.host_keys': %s", minion_id, resp['ret'])
                         continue
                     if not use_certs_param:
-                        for key in resp['ret']:
+                        for key in resp['ret'].keys():
                             if '-cert.pub' in key or '-cert-' in resp['ret'][key]:
                                 del resp['ret'][key]
                     log.trace("Found host keys for minion '%s'", minion_id)
@@ -72,7 +72,7 @@ def _process_userkeys(client, pillars, cache):
         minion_users[minion_id] = users
 
     minion_users_custkeys = {}
-    for minion_id in minion_users:
+    for minion_id in minion_users.keys():
         for user in minion_users[minion_id].keys():
             if minion_users[minion_id][user] is None:
                 minion_users[minion_id][user] = {}
@@ -167,7 +167,7 @@ def pull_pubkeys(tgt, tgt_type='glob', pillar_prefix='sshpki'):
     log.trace("Pillar data: %s", pillars)
 
     # filter out minions with no host or user keys set
-    for minion_id in pillars:
+    for minion_id in pillars.keys():
         # keep this minion if a host key is set
         try:
             try:
