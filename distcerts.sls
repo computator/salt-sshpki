@@ -47,7 +47,7 @@ sshpki-key-updates:
   schedule.present:
     - function: state.apply
     - job_args:
-      - sshpki
+      - sshpki.distcerts
     - days: 1
     - splay: 3600
     - return_job: false
