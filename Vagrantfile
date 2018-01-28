@@ -17,7 +17,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "salt-pillar", type: "shell", inline: <<-SHELL
     mkdir -p /etc/sshpki
     [ -f /etc/sshpki/ca_key ] || ssh-keygen -q -N '' -f /etc/sshpki/ca_key
-    ln -sf /srv/salt/sshpki/master.conf /etc/salt/master.d/sshpki.conf
+    ln -sf /srv/salt/sshpki/masterconf.yaml /etc/salt/master.d/sshpki.conf
     systemctl restart salt-master
   SHELL
   config.vm.provision "get-pillar", type: "shell", keep_color: true, inline: "salt-call --force-color pillar.get sshpki"
