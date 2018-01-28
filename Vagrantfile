@@ -4,9 +4,10 @@ Vagrant.configure(2) do |config|
     v.customize [ "modifyvm", :id, "--uartmode1", "disconnected" ]
   end
 
-  config.vm.synced_folder ".", "/srv/salt/_pillar"
+  config.vm.synced_folder ".", "/srv/salt/sshpki"
   config.vm.synced_folder "_runners", "/srv/salt/_runners"
   config.vm.synced_folder "_reactors", "/srv/salt/_reactors"
+  config.vm.synced_folder "_pillar", "/srv/salt/_pillar"
   config.vm.synced_folder ".test_pillar", "/srv/pillar"
   config.vm.synced_folder "lib/sshpki/sshpki", "/usr/local/lib/python2.7/dist-packages/sshpki"
 
@@ -16,7 +17,7 @@ Vagrant.configure(2) do |config|
   config.vm.provision "salt-pillar", type: "shell", inline: <<-SHELL
     mkdir -p /etc/sshpki
     [ -f /etc/sshpki/ca_key ] || ssh-keygen -q -N '' -f /etc/sshpki/ca_key
-    ln -sf /srv/salt/_pillar/master.conf /etc/salt/master.d/sshpki.conf
+    ln -sf /srv/salt/sshpki/master.conf /etc/salt/master.d/sshpki.conf
     systemctl restart salt-master
   SHELL
   config.vm.provision "get-pillar", type: "shell", keep_color: true, inline: "salt-call --force-color pillar.get sshpki"
