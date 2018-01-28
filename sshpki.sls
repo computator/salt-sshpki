@@ -1,7 +1,4 @@
-{% if salt['pillar.get']('sshpki:host_key_certs') %}
-include:
-  - ssh.server
-
+{% if salt['pillar.get']('sshpki:host_key_certs') and salt['pkg.version']('openssh-server') %}
 {% for type in salt['pillar.get']('sshpki:host_key_certs', {}).keys() %}
 sshpki-host-cert-{{ loop.index }}:
   file.managed:
@@ -10,17 +7,23 @@ sshpki-host-cert-{{ loop.index }}:
     - mode: 644
     - show_changes: false
     - allow_empty: false
-    - watch_in:
-      - service: sshd
+    - onchanges_in:
+      - module: sshpki-restart-sshd
+
 sshpki-host-cert-{{ loop.index }}-config:
   file.append:
     - name: /etc/ssh/sshd_config
     - text: HostCertificate /etc/ssh/ssh_host_{{ type }}_key-cert.pub
     - require:
       - file: sshpki-host-cert-{{ loop.index }}
-    - watch_in:
-      - service: sshd
+    - onchanges_in:
+      - module: sshpki-restart-sshd
 {% endfor %}
+
+sshpki-restart-sshd:
+  module.run:
+    - name: service.restart
+    - m_name: sshd
 {% endif %}
 
 {% for user, certs in salt['pillar.get']('sshpki:user_certs', {}).iteritems() %}
@@ -44,7 +47,7 @@ sshpki-key-updates:
   schedule.present:
     - function: state.apply
     - job_args:
-      - ssh.sshpki
+      - sshpki
     - days: 1
     - splay: 3600
     - return_job: false
