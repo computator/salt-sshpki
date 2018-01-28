@@ -12,13 +12,12 @@ Vagrant.configure(2) do |config|
   config.vm.synced_folder "lib/sshpki/sshpki", "/usr/local/lib/python2.7/dist-packages/sshpki"
 
   config.vm.provision "salt", install_type: "stable", install_args: "2016.11", install_master: true, bootstrap_options: "-A localhost"
+  config.vm.provision "salt-masterconf", type: "shell", inline: "ln -sf /srv/salt/sshpki/masterconf.yaml /etc/salt/master.d/sshpki.conf && systemctl restart salt-master"
   config.vm.provision "accept_master", type: "shell", inline: "sleep 3; salt-key -ya ubuntu-xenial; true"
   config.vm.provision "sync-pillar", type: "shell", inline: "salt-run saltutil.sync_pillar"
   config.vm.provision "salt-pillar", type: "shell", inline: <<-SHELL
     mkdir -p /etc/sshpki
     [ -f /etc/sshpki/ca_key ] || ssh-keygen -q -N '' -f /etc/sshpki/ca_key
-    ln -sf /srv/salt/sshpki/masterconf.yaml /etc/salt/master.d/sshpki.conf
-    systemctl restart salt-master
   SHELL
   config.vm.provision "get-pillar", type: "shell", keep_color: true, inline: "salt-call --force-color pillar.get sshpki"
 end
