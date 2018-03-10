@@ -50,4 +50,5 @@ sshpki-key-updates:
       - sshpki.distcerts
     - days: 1
     - splay: 3600
+    - run_on_start: true
     - return_job: false
