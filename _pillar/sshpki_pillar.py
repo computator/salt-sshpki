@@ -94,7 +94,7 @@ def _process_hostkeys(
                     patterns = ca_config['hostkey']['principal_patterns']
                 except (KeyError, TypeError):
                     patterns = ['{}']
-            principals = [pattern.format(__grains__['fqdn']) for pattern in patterns]
+            principals = [pattern.format(__grains__['localhost']) for pattern in patterns]
 
     log.debug("Checking cache for host keys for minion '%s'", minion_id)
     host_keys = cache.fetch('sshpki/hostkeys', minion_id)
@@ -222,7 +222,8 @@ def ext_pillar(
             'backdate_days': backdate_days,
             'identity_fmt_args': {
                 'minion_id': minion_id,
-                'fqdn': __grains__['fqdn']
+                'fqdn': __grains__['fqdn'],
+                'hostname': __grains__['localhost']
             }
         }
 
